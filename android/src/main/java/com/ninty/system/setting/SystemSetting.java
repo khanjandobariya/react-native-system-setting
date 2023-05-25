@@ -279,37 +279,42 @@ public class SystemSetting extends ReactContextBaseJavaModule implements Activit
         }
     }
 
-    @ReactMethod
-    public void setVolume(float val, ReadableMap config) {
-        unregisterVolumeReceiver();
-        String type = config.getString("type");
-        boolean playSound = config.getBoolean("playSound");
-        boolean showUI = config.getBoolean("showUI");
-        int volType = getVolType(type);
-        int flags = 0;
-        if (playSound) {
-            flags |= AudioManager.FLAG_PLAY_SOUND;
+   @ReactMethod
+  public void setVolume(float val, ReadableMap config) {
+    try {
+      unregisterVolumeReceiver();
+      String type = config.getString("type");
+      boolean playSound = config.getBoolean("playSound");
+      boolean showUI = config.getBoolean("showUI");
+      int volType = getVolType(type);
+      int flags = 0;
+      if (playSound) {
+        flags |= AudioManager.FLAG_PLAY_SOUND;
+      }
+      if (showUI) {
+        flags |= AudioManager.FLAG_SHOW_UI;
+      }
+      try {
+        am.setStreamVolume(volType, (int) (val * am.getStreamMaxVolume(volType)), flags);
+      } catch (SecurityException e) {
+        if (val == 0) {
+          Log.w(TAG, "setVolume(0) failed. See https://github.com/c19354837/react-native-system-setting/issues/48");
+          NotificationManager notificationManager =
+            (NotificationManager) mContext.getSystemService(Context.NOTIFICATION_SERVICE);
+          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
+            && !notificationManager.isNotificationPolicyAccessGranted()) {
+            Intent intent = new Intent(android.provider.Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            mContext.startActivity(intent);
+          }
         }
-        if (showUI) {
-            flags |= AudioManager.FLAG_SHOW_UI;
-        }
-        try {
-            am.setStreamVolume(volType, (int) (val * am.getStreamMaxVolume(volType)), flags);
-        } catch (SecurityException e) {
-            if (val == 0) {
-                Log.w(TAG, "setVolume(0) failed. See https://github.com/c19354837/react-native-system-setting/issues/48");
-                NotificationManager notificationManager =
-                        (NotificationManager) mContext.getSystemService(Context.NOTIFICATION_SERVICE);
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
-                        && !notificationManager.isNotificationPolicyAccessGranted()) {
-                    Intent intent = new Intent(android.provider.Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS);
-                    mContext.startActivity(intent);
-                }
-            }
-            Log.e(TAG, "err", e);
-        }
-        registerVolumeReceiver();
+        Log.e(TAG, "err", e);
+      }
+      registerVolumeReceiver();
+    } catch (Exception e) {
+      Log.e(TAG, "err", e);
     }
+  }
 
     @ReactMethod
     public void getVolume(String type, Promise promise) {
